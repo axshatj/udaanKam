@@ -8,7 +8,7 @@ A comprehensive lead tracking system for Udaan's B2B e-commerce platform with le
 2. Clone this repository to your local machine.
 3. Navigate to the project directory in your terminal.
 4. Run `npm install` to install the required dependencies.
-5. Start the server by running `npm start`.
+5. Start the server by running `npm start` or `npm run dev` for development mode with auto-restart.
 6. Open your web browser and go to `http://localhost:3000` to access the application.
 
 ## Features
