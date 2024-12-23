@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Udaan Lead Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold mb-4">Udaan Lead Tracker Dashboard</h1>
+        
+        <div class="mb-4">
+            <input type="text" id="searchInput" placeholder="Search leads..." class="p-2 border rounded w-full sm:w-auto">
+            <button onclick="searchLeads()" class="bg-blue-500 text-white p-2 rounded mt-2 sm:mt-0 sm:ml-2 w-full sm:w-auto">Search</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h2 class="text-xl font-semibold mb-2">All Leads</h2>
+                <ul id="leadList" class="bg-white p-4 rounded shadow overflow-auto max-h-96"></ul>
+            </div>
+            <div>
+                <h2 class="text-xl font-semibold mb-2">Today's Pending Calls</h2>
+                <ul id="pendingCallsList" class="bg-white p-4 rounded shadow overflow-auto max-h-96"></ul>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <h2 class="text-xl font-semibold mb-2">Recent Interactions</h2>
+            <ul id="interactionList" class="bg-white p-4 rounded shadow overflow-auto max-h-96"></ul>
+        </div>
+
+        <div class="mt-4">
+            <h2 class="text-xl font-semibold mb-2">Add New Restaurant Lead</h2>
+            <form id="addRestaurantForm" class="bg-white p-4 rounded shadow">
+                <input type="text" id="restaurantName" placeholder="Restaurant Name" required class="w-full p-2 mb-2 border rounded">
+                <input type="text" id="address" placeholder="Address" class="w-full p-2 mb-2 border rounded">
+                <input type="tel" id="contactNumber" placeholder="Contact Number (10 digits)" pattern="[0-9]{10}" class="w-full p-2 mb-2 border rounded">
+                <select id="status" class="w-full p-2 mb-2 border rounded">
+                    <option value="New">New</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+                <input type="text" id="assignedKam" placeholder="Assigned KAM" class="w-full p-2 mb-2 border rounded">
+                <button type="submit" class="bg-green-500 text-white p-2 rounded w-full">Add Restaurant</button>
+            </form>
+        </div>
+
+        <div class="mt-4">
+          <h2 class="text-xl font-semibold mb-2">Add Contact</h2>
+          <form id="addContactForm" class="bg-white p-4 rounded shadow">
+            <select id="contactRestaurantId" required class="w-full p-2 mb-2 border rounded">
+              <option value="">Select Restaurant</option>
+            </select>
+            <input type="text" id="contactName" placeholder="Contact Name" required class="w-full p-2 mb-2 border rounded">
+            <input type="text" id="contactRole" placeholder="Role" class="w-full p-2 mb-2 border rounded">
+            <input type="tel" id="contactPhone" placeholder="Phone Number (10 digits)" pattern="[0-9]{10}" class="w-full p-2 mb-2 border rounded">
+            <input type="email" id="contactEmail" placeholder="Email" class="w-full p-2 mb-2 border rounded">
+            <button type="submit" class="bg-green-500 text-white p-2 rounded w-full">Add Contact</button>
+          </form>
+        </div>
+
+        <div class="mt-4">
+          <h2 class="text-xl font-semibold mb-2">Log Interaction</h2>
+          <form id="logInteractionForm" class="bg-white p-4 rounded shadow">
+            <select id="interactionRestaurantId" required class="w-full p-2 mb-2 border rounded">
+              <option value="">Select Restaurant</option>
+            </select>
+            <input type="date" id="interactionDate" required class="w-full p-2 mb-2 border rounded">
+            <select id="interactionType" required class="w-full p-2 mb-2 border rounded">
+              <option value="Call">Call</option>
+              <option value="Visit">Visit</option>
+              <option value="Order">Order</option>
+            </select>
+            <textarea id="interactionNotes" placeholder="Notes" class="w-full p-2 mb-2 border rounded"></textarea>
+            <div class="mb-2">
+              <input type="checkbox" id="interactionFollowUp" class="mr-2">
+              <label for="interactionFollowUp">Follow-up required</label>
+            </div>
+            <button type="submit" class="bg-green-500 text-white p-2 rounded w-full">Log Interaction</button>
+          </form>
+        </div>
+
+        <div class="mt-4">
+          <h2 class="text-xl font-semibold mb-2">Restaurant Contacts</h2>
+          <select id="contactListRestaurantId" class="w-full p-2 mb-2 border rounded">
+            <option value="">Select Restaurant</option>
+          </select>
+          <ul id="contactList" class="bg-white p-4 rounded shadow"></ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        // Fetch and display all leads
+        async function fetchLeads() {
+            try {
+                const response = await fetch(`${API_URL}/leads`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch leads');
+                }
+                const leads = await response.json();
+                const leadList = document.getElementById('leadList');
+                leadList.innerHTML = leads.map(lead => `
+                    <li class="mb-2">
+                        <strong>${lead.name}</strong> - ${lead.status}
+                        <br>
+                        ${lead.address || 'No address'} | ${lead.contact_number || 'No contact number'}
+                        <br>
+                        KAM: ${lead.assigned_kam || 'Unassigned'} | Interactions: ${lead.interaction_count}
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while fetching leads');
+            }
+        }
+
+        // Fetch and display today's pending calls
+        async function fetchPendingCalls() {
+            try {
+                const response = await fetch(`${API_URL}/interactions/pending-calls`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch pending calls');
+                }
+                const pendingCalls = await response.json();
+                const pendingCallsList = document.getElementById('pendingCallsList');
+                pendingCallsList.innerHTML = pendingCalls.map(call => `
+                    <li class="mb-2">
+                        <strong>${call.restaurant_name}</strong>
+                        <br>
+                        Date: ${call.date} | Type: ${call.type}
+                        <br>
+                        Notes: ${call.notes}
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while fetching pending calls');
+            }
+        }
+
+        // Fetch and display recent interactions
+        async function fetchRecentInteractions() {
+            try {
+                const response = await fetch(`${API_URL}/interactions/recent`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recent interactions');
+                }
+                const interactions = await response.json();
+                const interactionList = document.getElementById('interactionList');
+                interactionList.innerHTML = interactions.map(interaction => `
+                    <li class="mb-2">
+                        <strong>${interaction.restaurant_name}</strong> - ${interaction.type} on ${interaction.date}
+                        <br>
+                        ${interaction.notes}
+                        <br>
+                        Follow-up required: ${interaction.follow_up_required ? 'Yes' : 'No'}
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while fetching recent interactions');
+            }
+        }
+
+        // Add new restaurant lead
+        document.getElementById('addRestaurantForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                name: document.getElementById('restaurantName').value,
+                address: document.getElementById('address').value,
+                contact_number: document.getElementById('contactNumber').value,
+                status: document.getElementById('status').value,
+                assigned_kam: document.getElementById('assignedKam').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/restaurants`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to add restaurant lead');
+                }
+
+                alert('Restaurant lead added successfully');
+                fetchLeads();
+                e.target.reset();
+            } catch (error) {
+                console.error('Error:', error);
+                alert(error.message);
+            }
+        });
+
+        // Search leads
+        async function searchLeads() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (query === '') {
+                fetchLeads(); // If the search query is empty, fetch all leads
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/restaurants/search?query=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    throw new Error('Search request failed');
+                }
+                const leads = await response.json();
+                const leadList = document.getElementById('leadList');
+                leadList.innerHTML = leads.map(lead => `
+                    <li class="mb-2">
+                        <strong>${lead.name}</strong> - ${lead.status}
+                        <br>
+                        ${lead.address || 'No address'} | ${lead.contact_number || 'No contact number'}
+                        <br>
+                        KAM: ${lead.assigned_kam || 'Unassigned'} | Interactions: ${lead.interaction_count}
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while searching for leads');
+            }
+        }
+
+        // Add event listener for search input
+        document.getElementById('searchInput').addEventListener('input', debounce(searchLeads, 300));
+
+        // Debounce function to limit the rate of API calls
+        function debounce(func, delay) {
+            let debounceTimer;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => func.apply(context, args), delay);
+            }
+        }
+
+        // Populate restaurant dropdowns
+        async function populateRestaurantDropdowns() {
+          try {
+              const response = await fetch(`${API_URL}/restaurants`);
+              if (!response.ok) {
+                  throw new Error('Failed to fetch restaurants');
+              }
+              const restaurants = await response.json();
+              const restaurantOptions = restaurants.map(restaurant => `
+                <option value="${restaurant.id}">${restaurant.name}</option>
+              `).join('');
+              
+              document.getElementById('contactRestaurantId').innerHTML += restaurantOptions;
+              document.getElementById('contactListRestaurantId').innerHTML += restaurantOptions;
+              document.getElementById('interactionRestaurantId').innerHTML += restaurantOptions;
+          } catch (error) {
+              console.error('Error:', error);
+              alert('An error occurred while fetching restaurants');
+          }
+        }
+
+        // Add new contact
+        document.getElementById('addContactForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = {
+            restaurant_id: document.getElementById('contactRestaurantId').value,
+            name: document.getElementById('contactName').value,
+            role: document.getElementById('contactRole').value,
+            phone_number: document.getElementById('contactPhone').value,
+            email: document.getElementById('contactEmail').value
+          };
+
+          try {
+            const response = await fetch(`${API_URL}/contacts`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to add contact');
+            }
+
+            alert('Contact added successfully');
+            e.target.reset();
+            fetchContacts(formData.restaurant_id);
+          } catch (error) {
+            console.error('Error:', error);
+            alert(error.message);
+          }
+        });
+
+        // Fetch and display contacts for a restaurant
+        async function fetchContacts(restaurantId) {
+          if (!restaurantId) return;
+          try {
+            const response = await fetch(`${API_URL}/contacts/${restaurantId}`);
+            if (!response.ok) {
+              throw new Error('Failed to fetch contacts');
+            }
+            const contacts = await response.json();
+            const contactList = document.getElementById('contactList');
+            contactList.innerHTML = contacts.map(contact => `
+              <li class="mb-2">
+                <strong>${contact.name}</strong> - ${contact.role || 'No role'}
+                <br>
+                ${contact.phone_number || 'No phone'} | ${contact.email || 'No email'}
+              </li>
+            `).join('');
+          } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while fetching contacts');
+          }
+        }
+
+        // Event listener for contact list restaurant dropdown
+        document.getElementById('contactListRestaurantId').addEventListener('change', (e) => {
+          fetchContacts(e.target.value);
+        });
+
+        // Log new interaction
+        document.getElementById('logInteractionForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = {
+            restaurant_id: document.getElementById('interactionRestaurantId').value,
+            date: document.getElementById('interactionDate').value,
+            type: document.getElementById('interactionType').value,
+            notes: document.getElementById('interactionNotes').value,
+            follow_up_required: document.getElementById('interactionFollowUp').checked
+          };
+
+          try {
+            const response = await fetch(`${API_URL}/interactions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to log interaction');
+            }
+
+            alert('Interaction logged successfully');
+            e.target.reset();
+            fetchRecentInteractions();
+            fetchPendingCalls();
+            fetchLeads();
+          } catch (error) {
+            console.error('Error:', error);
+            alert(error.message);
+          }
+        });
+
+        // Initial data fetch
+        fetchLeads();
+        fetchPendingCalls();
+        fetchRecentInteractions();
+        populateRestaurantDropdowns();
+    </script>
+</body>
+</html>
+
